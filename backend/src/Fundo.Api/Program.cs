@@ -5,7 +5,9 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
-builder.Services.AddFundoInfrastructure(builder.Configuration.GetConnectionString("Fundo") ?? "Data Source=fundo.db");
+builder.Services.AddFundoInfrastructure(
+    builder.Configuration.GetConnectionString("Fundo") ?? "Data Source=fundo.db",
+    builder.Configuration["ExternalServiceUrl"] ?? "http://localhost:3001/");
 builder.Services.AddScoped<SubmissionService>();
 builder.Services.AddSingleton<IApplicationRule, NyStateRule>();
 builder.Services.AddSingleton<IApplicationRule>(_ => new BlacklistedSsnRule(builder.Configuration.GetSection("BlacklistedSsns").Get<string[]>() ?? []));

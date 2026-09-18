@@ -4,7 +4,10 @@ using Fundo.Api.Controllers;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
+using System.Net;
+using System.Net.Http;
 using Xunit;
 
 namespace Fundo.Infrastructure.Tests;
@@ -102,10 +105,81 @@ public sealed class EfApplicationStoreTests
         Assert.IsType<BadRequestObjectResult>(await controller.Submit(Request("CA", "bad"), default));
     }
 
+    [Fact]
+    public async Task External_client_routes_create_and_update_by_application_id()
+    {
+        var handler = new RecordingHandler();
+        var client = new ExternalApplicationClient(new HttpClient(handler) { BaseAddress = new Uri("http://mock/") });
+        var applicationId = Guid.NewGuid();
+
+        await client.SendAsync(Message("create", applicationId));
+        await client.SendAsync(Message("update", applicationId));
+
+        Assert.Equal(["POST /applications", $"PUT /applications/{applicationId}"], handler.Requests);
+    }
+
+    [Fact]
+    public async Task Outbox_retries_failed_create_before_delivering_its_update_and_tolerates_duplicate_delivery()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var applicationId = await database.Store.SaveApprovedApplicationAsync(Submission("123456789"));
+        await database.Store.SaveApprovedApplicationAsync(Submission("123456789", "2 New St"));
+        var client = new RecordingClient(failFirstCreateAfterDelivery: true);
+        await using var provider = database.CreateProvider(client);
+        var processor = new OutboxProcessor(provider.GetRequiredService<IServiceScopeFactory>());
+
+        await processor.ProcessPendingAsync();
+        database.Context.ChangeTracker.Clear();
+        Assert.Equal(1, (await database.Context.OutboxMessages.SingleAsync(message => message.Operation == "create")).Attempts);
+        Assert.Null((await database.Context.OutboxMessages.SingleAsync(message => message.Operation == "update")).ProcessedAtUtc);
+
+        await processor.ProcessPendingAsync();
+        database.Context.ChangeTracker.Clear();
+        Assert.All(await database.Context.OutboxMessages.ToListAsync(), message => Assert.NotNull(message.ProcessedAtUtc));
+        Assert.Equal(["create", "create", "update"], client.Deliveries);
+        Assert.Equal(applicationId, client.ApplicationIds.Last());
+    }
+
     private static ApplicationSubmission Submission(string ssn, string address = "1 Main St", string company = "Fundo", decimal amount = 100m) =>
         ApplicationSubmission.Create("Ada", "Lovelace", address, "CA", company, amount, ssn);
 
     private static SubmitApplicationRequest Request(string state, string ssn) => new("Ada", "Lovelace", "1 Main St", state, "Fundo", 100m, ssn);
+
+    private static OutboxMessage Message(string operation, Guid applicationId) => new()
+    {
+        CustomerId = Guid.NewGuid(), ApplicationId = applicationId, Operation = operation,
+        Payload = JsonSerializer.Serialize(new { Application = new { Id = applicationId } })
+    };
+
+    private sealed class RecordingHandler : HttpMessageHandler
+    {
+        public List<string> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requests.Add($"{request.Method} {request.RequestUri!.PathAndQuery}");
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+        }
+    }
+
+    private sealed class RecordingClient(bool failFirstCreateAfterDelivery) : IExternalApplicationClient
+    {
+        private bool _fail = failFirstCreateAfterDelivery;
+        public List<string> Deliveries { get; } = [];
+        public List<Guid> ApplicationIds { get; } = [];
+
+        public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+        {
+            Deliveries.Add(message.Operation);
+            ApplicationIds.Add(message.ApplicationId);
+            if (_fail && message.Operation == "create")
+            {
+                _fail = false;
+                throw new HttpRequestException("unavailable");
+            }
+            return Task.CompletedTask;
+        }
+    }
 
     private sealed class TestDatabase : IAsyncDisposable
     {
@@ -128,6 +202,11 @@ public sealed class EfApplicationStoreTests
             await context.Database.MigrateAsync();
             return new TestDatabase(connection, context);
         }
+
+        public ServiceProvider CreateProvider(IExternalApplicationClient client) => new ServiceCollection()
+            .AddDbContext<FundoDbContext>(options => options.UseSqlite(_connection))
+            .AddScoped<IExternalApplicationClient>(_ => client)
+            .BuildServiceProvider();
 
         public async ValueTask DisposeAsync()
         {
