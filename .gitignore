@@ -1,0 +1,51 @@
+# .NET build output
+[Bb]in/
+[Oo]bj/
+
+# Node.js / Next.js
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Test results and coverage
+TestResults/
+coverage/
+*.trx
+*.coverage
+*.coveragexml
+
+# Local environment configuration (keep examples tracked)
+.env
+.env.*
+!.env.example
+!.env.*.example
+appsettings.Local.json
+appsettings.*.Local.json
+
+# SQLite databases and journal/WAL files
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# IDE-specific local files
+.vs/
+.idea/
+*.user
+*.suo
+*.sln.docstates
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
