@@ -9,4 +9,5 @@ public sealed class Customer
     public required string State { get; set; }
     public required string CompanyName { get; set; }
     public required string NormalizedSsn { get; init; }
+    public LoanApplication? Application { get; set; }
 }
