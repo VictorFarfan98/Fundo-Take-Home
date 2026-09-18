@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <ProjectReference Include="../Fundo.Application/Fundo.Application.csproj" />
     <ProjectReference Include="../Fundo.Infrastructure/Fundo.Infrastructure.csproj" />
   </ItemGroup>
