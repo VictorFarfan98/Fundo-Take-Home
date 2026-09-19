@@ -1,6 +1,8 @@
 # Fundo take home assignment
 
-## Info
+Demo video: https://www.loom.com/share/eb31f8cf759743908c554f4161f18625
+
+## Project Description
 
 A Next.js and .NET loan application demo with eligibility rules, transactional SQLite persistence, and background delivery to an external mock service.
 
