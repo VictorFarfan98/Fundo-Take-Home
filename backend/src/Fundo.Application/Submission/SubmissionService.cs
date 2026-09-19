@@ -10,6 +10,7 @@ public sealed class SubmissionService(IEnumerable<IApplicationRule> rules, IAppl
         {
             var decision = rule.Evaluate(submission);
             if (!decision.IsApproved)
+                // A denial never reaches persistence.
                 return decision;
         }
 

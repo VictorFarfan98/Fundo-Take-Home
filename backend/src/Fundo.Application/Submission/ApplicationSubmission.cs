@@ -31,6 +31,7 @@ public sealed record ApplicationSubmission(
         if (requestedAmount <= 0)
             throw new ArgumentOutOfRangeException(nameof(requestedAmount), "Requested amount must be positive.");
 
+        // Keep one canonical SSN for rules, lookups, and persistence.
         var normalizedSsn = string.Concat(ssn!.Where(static character => character is >= '0' and <= '9'));
         if (normalizedSsn.Length != 9)
             throw new ArgumentException("SSN must contain nine digits.", nameof(ssn));

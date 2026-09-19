@@ -27,6 +27,7 @@ public sealed class OutboxProcessor(IServiceScopeFactory scopes) : BackgroundSer
             if (message.Operation == "update" && await db.OutboxMessages.AnyAsync(
                     prior => prior.ApplicationId == message.ApplicationId && prior.Operation == "create" && prior.ProcessedAtUtc == null,
                     cancellationToken))
+                // Preserve create-before-update delivery for a new application.
                 continue;
 
             try
@@ -37,6 +38,7 @@ public sealed class OutboxProcessor(IServiceScopeFactory scopes) : BackgroundSer
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
             {
+                // Leave failures pending so the next poll can retry them.
                 message.Attempts++;
                 message.LastError = exception.GetType().Name;
             }
