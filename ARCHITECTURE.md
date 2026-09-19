@@ -2,39 +2,21 @@
 
 Use Next.js, a .NET API, EF Core with SQLite migrations, and a minimal Node.js/Express external mock.
 
-Location
-
-Responsibility
-
-frontend/fundo-web/
-
-Form, validation, approved/denied pages; local state and HTTP calls
-
-backend/src/Fundo.Domain/
-
-Customer and LoanApplication entities
-
-backend/src/Fundo.Application/
-
-Submission use case, decision rules, IApplicationStore contract
-
-backend/src/Fundo.Infrastructure/
-
-EF Core store, migrations, outbox worker, external HTTP client
-
-backend/src/Fundo.Api/
-
-Thin HTTP controller, configuration, dependency injection
-
-backend/tests/
-
-Unit and SQLite integration tests
-
-external-service/mock-service/
-
-External create/update endpoints and record inspection
+| Location | Responsibility |
+| --- | --- |
+| `frontend/fundo-web/` | Form, validation, approved/denied pages; local state and HTTP calls |
+| `backend/src/Fundo.Domain/` | Customer and LoanApplication entities |
+| `backend/src/Fundo.Application/` | Submission use case, decision rules, IApplicationStore contract |
+| `backend/src/Fundo.Infrastructure/` | EF Core store, migrations, outbox worker, external HTTP client |
+| `backend/src/Fundo.Api/` | Thin HTTP controller, configuration, dependency injection |
+| `backend/tests/` | Unit and SQLite integration tests |
+| `external-service/mock-service/` | External create/update endpoints and record inspection |
 
 Application references Domain; Infrastructure references Application and Domain; Api references Application and Infrastructure. Domain has no project dependencies. Inner layers never depend on infrastructure or HTTP frameworks.
+
+The browser posts to the frontend's relative `/api/*` path. A Next.js rewrite forwards that path to the .NET API, keeping the browser independent of the API host during local development; `API_BASE_URL` overrides the default API address when needed.
+
+On API startup, EF Core runs `Database.Migrate()` before the controller is mapped. This makes a clean local SQLite database usable without a separate migration command. EF records applied migrations in its migrations-history table, so repeated sequential startups apply only pending migrations and are idempotent. Coordinating simultaneous API startups is outside this single-instance exercise.
 
 2. Rule engine
 
@@ -49,6 +31,8 @@ An OutboxProcessor : BackgroundService polls committed, pending messages using a
 Create events call POST /applications; updates call PUT /applications/{applicationId}. Success sets ProcessedAtUtc. Failure increments Attempts, records a sanitized LastError, and leaves the message pending for retry. External calls run independently of the submission request and outside its database transaction.
 
 Delivery is at least once: a crash after HTTP success but before recording completion can cause redelivery. The mock uses the application GUID as its resource key and tolerates duplicate creates and updates. GET /applications exposes received records for demonstration.
+
+For a newly created application, the processor does not send a pending update until its pending create message has been processed. This preserves create-before-update ordering without adding a broker or a separate ordering system.
 
 4. Transaction and failures
 
