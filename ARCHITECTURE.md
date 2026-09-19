@@ -52,7 +52,7 @@ Delivery is at least once: a crash after HTTP success but before recording compl
 
 4. Transaction and failures
 
-IApplicationStore.SaveApprovedApplicationAsync owns one explicit EF Core/SQLite transaction. It looks up the normalized SSN, creates or updates the customer and their single application, then inserts an outbox event containing the operation, event ID, resource IDs, and data snapshot. Returning customers retain both IDs. Database constraints enforce unique SSNs and one application per customer.
+IApplicationStore.SaveApprovedApplicationAsync owns one explicit EF Core/SQLite transaction. It looks up the normalized SSN, creates or updates the customer and their single application, then inserts an outbox event containing the operation, event ID, resource IDs, and complete customer/application snapshot, including the normalized SSN. Returning customers retain both IDs. Database constraints enforce unique SSNs and one application per customer.
 
 Publishing means durably committing that outbox event with the business records. If a database write or event insertion fails, all changes roll back and no approval is returned. Approval follows successful commit. Later external-delivery failures do not undo approved records; the event remains pending for retry.
 

@@ -22,6 +22,11 @@ function validate(values: Fields): Errors {
   return errors;
 }
 
+function formatSsn(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 9);
+  return digits.length > 5 ? `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}` : digits.length > 3 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : digits;
+}
+
 export default function ApplicationForm() {
   const router = useRouter();
   const [fields, setFields] = useState(initialFields);
@@ -29,6 +34,7 @@ export default function ApplicationForm() {
   const [submitting, setSubmitting] = useState(false);
 
   function update(name: keyof Fields, value: string) {
+    if (name === "ssn") value = formatSsn(value);
     setFields(current => ({ ...current, [name]: value }));
     setErrors(current => ({ ...current, [name]: undefined, form: undefined }));
   }
@@ -37,7 +43,12 @@ export default function ApplicationForm() {
     event.preventDefault();
     if (submitting) return;
     const validation = validate(fields);
-    if (Object.keys(validation).length) return setErrors(validation);
+    const firstInvalid = Object.keys(validation)[0] as keyof Fields | undefined;
+    if (firstInvalid) {
+      setErrors(validation);
+      requestAnimationFrame(() => document.getElementById(`application-${firstInvalid}`)?.focus());
+      return;
+    }
     setSubmitting(true);
     try {
       const response = await fetch("/api/applications", {
@@ -60,18 +71,22 @@ export default function ApplicationForm() {
     <form onSubmit={submit} noValidate aria-busy={submitting}>
       {errors.form && <p className="form-error" role="alert">{errors.form}</p>}
       <div className="fields">
-        <Field label="First name" name="firstName" value={fields.firstName} error={errors.firstName} disabled={submitting} onChange={update} />
-        <Field label="Last name" name="lastName" value={fields.lastName} error={errors.lastName} disabled={submitting} onChange={update} />
-        <Field label="Address" name="address" value={fields.address} error={errors.address} disabled={submitting} onChange={update} className="wide" />
-        <Field label="State" name="state" value={fields.state} error={errors.state} disabled={submitting} onChange={update} list="us-states" placeholder="Search state" autoComplete="address-level1" />
-        <Field label="Company name" name="companyName" value={fields.companyName} error={errors.companyName} disabled={submitting} onChange={update} />
-        <Field label="Requested amount" name="requestedAmount" value={fields.requestedAmount} error={errors.requestedAmount} disabled={submitting} onChange={update} type="number" min="0.01" step="0.01" />
-        <Field label="SSN" name="ssn" value={fields.ssn} error={errors.ssn} disabled={submitting} onChange={update} inputMode="numeric" autoComplete="off" />
+        <Field label="First name" name="firstName" value={fields.firstName} error={errors.firstName} disabled={submitting} onChange={update} autoComplete="given-name" />
+        <Field label="Last name" name="lastName" value={fields.lastName} error={errors.lastName} disabled={submitting} onChange={update} autoComplete="family-name" />
+        <Field label="Address" name="address" value={fields.address} error={errors.address} disabled={submitting} onChange={update} className="wide" autoComplete="street-address" />
+        <StateField value={fields.state} error={errors.state} disabled={submitting} onChange={update} />
+        <Field label="Company name" name="companyName" value={fields.companyName} error={errors.companyName} disabled={submitting} onChange={update} autoComplete="organization" />
+        <Field label="Requested amount (USD)" name="requestedAmount" value={fields.requestedAmount} error={errors.requestedAmount} disabled={submitting} onChange={update} type="number" min="0.01" step="0.01" placeholder="0.00" />
+        <Field label="SSN" name="ssn" value={fields.ssn} error={errors.ssn} disabled={submitting} onChange={update} type="tel" inputMode="numeric" autoComplete="off" maxLength={11} placeholder="123-45-6789" />
       </div>
-      <datalist id="us-states">{usStates.map(([code, name]) => <option key={code} value={code} label={name}>{name}</option>)}</datalist>
       <button disabled={submitting} type="submit">{submitting ? "Submitting…" : "Submit application"}</button>
     </form>
   </section></main>;
+}
+
+function StateField({ value, error, disabled, onChange }: { value: string; error?: string; disabled: boolean; onChange: (name: keyof Fields, value: string) => void }) {
+  const id = "application-state";
+  return <label className="field" htmlFor={id}>State<select id={id} name="state" value={value} disabled={disabled} onChange={event => onChange("state", event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined} autoComplete="address-level1"><option value="">Select a state</option>{usStates.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select>{error && <span id={`${id}-error`} className="field-error">{error}</span>}</label>;
 }
 
 function Field({ label, name, value, error, disabled, onChange, className = "", ...input }: { label: string; name: keyof Fields; value: string; error?: string; disabled: boolean; onChange: (name: keyof Fields, value: string) => void; className?: string } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "name" | "value" | "disabled">) {

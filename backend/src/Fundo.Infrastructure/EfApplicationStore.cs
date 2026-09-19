@@ -40,7 +40,7 @@ public sealed class EfApplicationStore(FundoDbContext db) : IApplicationStore
             Operation = operation,
             Payload = JsonSerializer.Serialize(new
             {
-                Customer = new { customer.Id, customer.FirstName, customer.LastName, customer.Address, customer.State, customer.CompanyName },
+                Customer = new { customer.Id, customer.FirstName, customer.LastName, customer.Address, customer.State, customer.CompanyName, customer.NormalizedSsn },
                 Application = new { application.Id, application.CustomerId, application.RequestedAmount }
             })
         });

@@ -31,6 +31,7 @@ npm run dev
 Tests — repository root
 
 # Requires .NET SDK 10 and restored backend packages.
+dotnet build Fundo.sln --no-restore
 dotnet test Fundo.sln --no-restore
 
 Test data

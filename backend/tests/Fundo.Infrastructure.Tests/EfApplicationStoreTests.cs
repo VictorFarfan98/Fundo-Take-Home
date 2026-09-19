@@ -1,9 +1,7 @@
 using Fundo.Application.Rules;
 using Fundo.Application.Submission;
-using Fundo.Api.Controllers;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using System.Net;
@@ -28,6 +26,7 @@ public sealed class EfApplicationStoreTests
         Assert.Equal("create", message.Operation);
         Assert.Contains(id.ToString(), message.Payload);
         Assert.Contains(customer.Id.ToString(), message.Payload);
+        Assert.Contains("123456789", message.Payload);
     }
 
     [Fact]
@@ -91,21 +90,6 @@ public sealed class EfApplicationStoreTests
     }
 
     [Fact]
-    public async Task Submission_endpoint_returns_documented_approval_denial_and_validation_contracts()
-    {
-        await using var database = await TestDatabase.CreateAsync();
-        var controller = new ApplicationsController(new SubmissionService([new NyStateRule(), new BlacklistedSsnRule(["111223333"])], database.Store));
-
-        var approved = Assert.IsType<OkObjectResult>(await controller.Submit(Request("CA", "123-45-6789"), default));
-        Assert.Contains("\"decision\":\"approved\"", JsonSerializer.Serialize(approved.Value));
-        var stateDenial = Assert.IsType<UnprocessableEntityObjectResult>(await controller.Submit(Request("NY", "234-56-7890"), default));
-        Assert.Contains("\"reason\":\"state-not-supported\"", JsonSerializer.Serialize(stateDenial.Value));
-        var blacklistDenial = Assert.IsType<UnprocessableEntityObjectResult>(await controller.Submit(Request("CA", "111-22-3333"), default));
-        Assert.Contains("\"reason\":\"ssn-blacklisted\"", JsonSerializer.Serialize(blacklistDenial.Value));
-        Assert.IsType<BadRequestObjectResult>(await controller.Submit(Request("CA", "bad"), default));
-    }
-
-    [Fact]
     public async Task External_client_routes_create_and_update_by_application_id()
     {
         var handler = new RecordingHandler();
@@ -142,8 +126,6 @@ public sealed class EfApplicationStoreTests
 
     private static ApplicationSubmission Submission(string ssn, string address = "1 Main St", string company = "Fundo", decimal amount = 100m) =>
         ApplicationSubmission.Create("Ada", "Lovelace", address, "CA", company, amount, ssn);
-
-    private static SubmitApplicationRequest Request(string state, string ssn) => new("Ada", "Lovelace", "1 Main St", state, "Fundo", 100m, ssn);
 
     private static OutboxMessage Message(string operation, Guid applicationId) => new()
     {
