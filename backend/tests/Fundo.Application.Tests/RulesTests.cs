@@ -18,6 +18,11 @@ public sealed class RulesTests
         Assert.True(new NyStateRule().Evaluate(ValidSubmission).IsApproved);
 
     [Fact]
+    public void Submission_rejects_unknown_state_codes() =>
+        Assert.Throws<ArgumentException>(() => ApplicationSubmission.Create(
+            "Ada", "Lovelace", "1 Main St", "ZZ", "Fundo", 100m, "123-45-6789"));
+
+    [Fact]
     public void BlacklistedSsnRule_denies_listed_ssn() =>
         Assert.Equal("ssn-blacklisted", new BlacklistedSsnRule(["123456789"]).Evaluate(ValidSubmission).Reason);
 

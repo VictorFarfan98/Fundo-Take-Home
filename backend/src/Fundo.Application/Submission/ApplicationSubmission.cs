@@ -9,6 +9,11 @@ public sealed record ApplicationSubmission(
     decimal RequestedAmount,
     string Ssn)
 {
+    private static readonly HashSet<string> UsStateCodes =
+    [
+        "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
+    ];
+
     public static ApplicationSubmission Create(
         string? firstName,
         string? lastName,
@@ -21,8 +26,8 @@ public sealed record ApplicationSubmission(
         if (new[] { firstName, lastName, address, state, companyName, ssn }.Any(string.IsNullOrWhiteSpace))
             throw new ArgumentException("All submission fields are required.");
         var normalizedState = state!.Trim().ToUpperInvariant();
-        if (normalizedState.Length != 2 || !normalizedState.All(char.IsLetter))
-            throw new ArgumentException("State must be a two-letter code.");
+        if (!UsStateCodes.Contains(normalizedState))
+            throw new ArgumentException("State must be a US state code.");
         if (requestedAmount <= 0)
             throw new ArgumentOutOfRangeException(nameof(requestedAmount), "Requested amount must be positive.");
 

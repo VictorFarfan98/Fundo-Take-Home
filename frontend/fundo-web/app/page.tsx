@@ -7,12 +7,16 @@ type Fields = { firstName: string; lastName: string; address: string; state: str
 type Errors = Partial<Record<keyof Fields, string>> & { form?: string };
 
 const initialFields: Fields = { firstName: "", lastName: "", address: "", state: "", companyName: "", requestedAmount: "", ssn: "" };
+const usStates = [
+  ["AL", "Alabama"], ["AK", "Alaska"], ["AZ", "Arizona"], ["AR", "Arkansas"], ["CA", "California"], ["CO", "Colorado"], ["CT", "Connecticut"], ["DE", "Delaware"], ["FL", "Florida"], ["GA", "Georgia"], ["HI", "Hawaii"], ["ID", "Idaho"], ["IL", "Illinois"], ["IN", "Indiana"], ["IA", "Iowa"], ["KS", "Kansas"], ["KY", "Kentucky"], ["LA", "Louisiana"], ["ME", "Maine"], ["MD", "Maryland"], ["MA", "Massachusetts"], ["MI", "Michigan"], ["MN", "Minnesota"], ["MS", "Mississippi"], ["MO", "Missouri"], ["MT", "Montana"], ["NE", "Nebraska"], ["NV", "Nevada"], ["NH", "New Hampshire"], ["NJ", "New Jersey"], ["NM", "New Mexico"], ["NY", "New York"], ["NC", "North Carolina"], ["ND", "North Dakota"], ["OH", "Ohio"], ["OK", "Oklahoma"], ["OR", "Oregon"], ["PA", "Pennsylvania"], ["RI", "Rhode Island"], ["SC", "South Carolina"], ["SD", "South Dakota"], ["TN", "Tennessee"], ["TX", "Texas"], ["UT", "Utah"], ["VT", "Vermont"], ["VA", "Virginia"], ["WA", "Washington"], ["WV", "West Virginia"], ["WI", "Wisconsin"], ["WY", "Wyoming"]
+] as const;
+const usStateCodes = new Set<string>(usStates.map(([code]) => code));
 
 function validate(values: Fields): Errors {
   const errors: Errors = {};
   for (const [name, value] of Object.entries(values) as [keyof Fields, string][])
     if (!value.trim()) errors[name] = "This field is required.";
-  if (values.state && !/^[a-z]{2}$/i.test(values.state.trim())) errors.state = "Use a two-letter state code.";
+  if (values.state && !usStateCodes.has(values.state.trim().toUpperCase())) errors.state = "Choose a US state.";
   if (values.requestedAmount && Number(values.requestedAmount) <= 0) errors.requestedAmount = "Enter an amount greater than zero.";
   if (values.ssn && values.ssn.replace(/\D/g, "").length !== 9) errors.ssn = "Enter an SSN with nine digits.";
   return errors;
@@ -59,11 +63,12 @@ export default function ApplicationForm() {
         <Field label="First name" name="firstName" value={fields.firstName} error={errors.firstName} disabled={submitting} onChange={update} />
         <Field label="Last name" name="lastName" value={fields.lastName} error={errors.lastName} disabled={submitting} onChange={update} />
         <Field label="Address" name="address" value={fields.address} error={errors.address} disabled={submitting} onChange={update} className="wide" />
-        <Field label="State" name="state" value={fields.state} error={errors.state} disabled={submitting} onChange={update} maxLength={2} />
+        <Field label="State" name="state" value={fields.state} error={errors.state} disabled={submitting} onChange={update} list="us-states" placeholder="Search state" autoComplete="address-level1" />
         <Field label="Company name" name="companyName" value={fields.companyName} error={errors.companyName} disabled={submitting} onChange={update} />
         <Field label="Requested amount" name="requestedAmount" value={fields.requestedAmount} error={errors.requestedAmount} disabled={submitting} onChange={update} type="number" min="0.01" step="0.01" />
         <Field label="SSN" name="ssn" value={fields.ssn} error={errors.ssn} disabled={submitting} onChange={update} inputMode="numeric" autoComplete="off" />
       </div>
+      <datalist id="us-states">{usStates.map(([code, name]) => <option key={code} value={code} label={name}>{name}</option>)}</datalist>
       <button disabled={submitting} type="submit">{submitting ? "Submitting…" : "Submit application"}</button>
     </form>
   </section></main>;
