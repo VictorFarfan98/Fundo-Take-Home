@@ -15,7 +15,11 @@ builder.Services.AddSingleton<IApplicationRule>(_ => new BlacklistedSsnRule(buil
 
 var app = builder.Build();
 app.UseSwagger();
-app.UseSwaggerUI(options => options.RoutePrefix = string.Empty);
+app.UseSwaggerUI(options =>
+{
+    options.RoutePrefix = string.Empty;
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Fundo API v1");
+});
 using (var scope = app.Services.CreateScope())
     scope.ServiceProvider.GetRequiredService<FundoDbContext>().Database.Migrate();
 app.MapControllers();
